@@ -50,7 +50,7 @@ public class PublicationService implements ContractInterface {
     private Publication put(final Context ctx, final Publication publication) {
         // Use Genson to convert the Asset into string, sort it alphabetically and serialize it into a json string
         String sortedJson = genson.serialize(publication);
-        ctx.getStub().putStringState(publication.getId(), sortedJson);
+        ctx.getStub().putStringState(publication.id(), sortedJson);
 
         return publication;
     }
