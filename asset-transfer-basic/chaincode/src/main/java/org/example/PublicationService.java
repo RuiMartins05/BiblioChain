@@ -9,6 +9,7 @@ import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.Contract;
 import org.hyperledger.fabric.contract.annotation.Default;
 import org.hyperledger.fabric.contract.annotation.Transaction;
+import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
@@ -21,10 +22,10 @@ public class PublicationService implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void initLedger(final Context ctx) {
-        put(ctx, new Publication("1", "publication1"));
-        put(ctx, new Publication("2", "publication2"));
-    }
 
+        put(ctx, new Publication("publication1", "BiblioChain Thesis"));
+        put(ctx, new Publication("publication2", "Bitcoin Whitepaper"));
+    }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
     public String getAll(final Context ctx) {
@@ -46,6 +47,25 @@ public class PublicationService implements ContractInterface {
 
         return genson.serialize(queryResults);
     }
+
+    @Transaction(intent = Transaction.TYPE.EVALUATE)
+    public boolean existsById(final Context ctx, final String id) {
+        String assetJSON = ctx.getStub().getStringState(id);
+        return (assetJSON != null && !assetJSON.isEmpty());
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public Publication createPublication(final Context ctx, final String id, final String title) {
+
+        if (existsById(ctx, id)) {
+            String errorMessage = String.format("Publication %s already exists", id);
+            System.out.println(errorMessage);
+            throw new ChaincodeException(errorMessage, PublicationErrors.PUBLICATION_ALREADY_EXISTS.toString());
+        }
+
+        return put(ctx, new Publication(id, title));
+    }
+
 
     private Publication put(final Context ctx, final Publication publication) {
         // Use Genson to convert the Asset into string, sort it alphabetically and serialize it into a json string

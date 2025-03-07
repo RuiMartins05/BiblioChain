@@ -10,6 +10,7 @@ import com.google.gson.JsonParser;
 import io.grpc.Grpc;
 import io.grpc.ManagedChannel;
 import io.grpc.TlsChannelCredentials;
+import java.util.Arrays;
 import org.hyperledger.fabric.client.CommitException;
 import org.hyperledger.fabric.client.CommitStatusException;
 import org.hyperledger.fabric.client.Contract;
@@ -120,9 +121,11 @@ public final class App {
 	public void run() throws GatewayException, CommitException {
 
 		initLedger();
-
 		getAllPublications();
 
+		checkPublicationsExistenceFlow();
+
+		createPublicationFlow();
 	}
 
 	private void initLedger() throws EndorseException, SubmitException, CommitStatusException, CommitException {
@@ -142,8 +145,62 @@ public final class App {
 		System.out.println("Result: " + prettyJson(result));
 	}
 
+	private void checkPublicationsExistenceFlow() {
+		String existingId = "publication1";
+		String nonExistingId = "randomId";
+		existsById(existingId);
+		existsById(nonExistingId);
+	}
+
+	private void createPublicationFlow() {
+		String id = "publication3";
+		createPublication(id, "Ethereum Whitpaper");
+		existsById(id);
+	}
+
+	private void createPublication(final String id, final String title) {
+		System.out.println("\n--- Create Publication with Id '" + id + "'");
+
+		try {
+			publicationContract.submitTransaction("createPublication", id, title);
+		} catch (EndorseException | SubmitException | CommitStatusException e) {
+			e.printStackTrace(System.out);
+			System.out.println("Transaction ID: " + e.getTransactionId());
+		} catch (CommitException e) {
+			e.printStackTrace(System.out);
+			System.out.println("Transaction ID: " + e.getTransactionId());
+			System.out.println("Status code: " + e.getCode());
+		}
+
+
+		System.out.println("*** Transaction committed successfully");
+	}
+
+
+
+	private boolean existsById(final String id) {
+		System.out.println("\n--- Checking If Publication '" + id + "' Exists ---");
+
+		try {
+			byte[] byteResult = publicationContract.evaluateTransaction("existsById", id);
+			boolean result = jsonToBoolean(byteResult);
+			System.out.println("result: " + result);
+			return result;
+		} catch (GatewayException e) {
+			System.err.println("--- Error while checking publication existence ---");
+			System.err.println("Message: " + e.getMessage());
+		}
+
+		return false;
+	}
+
+
 	private String prettyJson(final byte[] json) {
 		return prettyJson(new String(json, StandardCharsets.UTF_8));
+	}
+
+	private boolean jsonToBoolean(final byte[] json) {
+		return Boolean.parseBoolean(prettyJson(json).trim());
 	}
 
 	private String prettyJson(final String json) {
