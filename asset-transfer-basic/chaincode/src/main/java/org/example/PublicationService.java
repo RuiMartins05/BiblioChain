@@ -20,14 +20,14 @@ public class PublicationService implements ContractInterface {
     private final Genson genson = new Genson();
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
-    public void InitLedgerPublications(final Context ctx) {
+    public void initLedger(final Context ctx) {
         put(ctx, new Publication("1", "publication1"));
         put(ctx, new Publication("2", "publication2"));
     }
 
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
-    public String GetAllPublications(final Context ctx) {
+    public String getAll(final Context ctx) {
         ChaincodeStub stub = ctx.getStub();
 
         List<Publication> queryResults = new ArrayList<>();
@@ -39,9 +39,9 @@ public class PublicationService implements ContractInterface {
         QueryResultsIterator<KeyValue> results = stub.getStateByRange("", "");
 
         for (KeyValue result: results) {
-            Publication publication = genson.deserialize(result.getStringValue(), Publication.class);
-            System.out.println(publication);
-            queryResults.add(publication);
+            Publication asset = genson.deserialize(result.getStringValue(), Publication.class);
+            System.out.println(asset);
+            queryResults.add(asset);
         }
 
         return genson.serialize(queryResults);
@@ -50,7 +50,7 @@ public class PublicationService implements ContractInterface {
     private Publication put(final Context ctx, final Publication publication) {
         // Use Genson to convert the Asset into string, sort it alphabetically and serialize it into a json string
         String sortedJson = genson.serialize(publication);
-        ctx.getStub().putStringState(publication.id(), sortedJson);
+        ctx.getStub().putStringState(publication.getId(), sortedJson);
 
         return publication;
     }
