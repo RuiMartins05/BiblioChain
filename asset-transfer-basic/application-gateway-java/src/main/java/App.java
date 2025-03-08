@@ -10,7 +10,14 @@ import com.google.gson.JsonParser;
 import io.grpc.Grpc;
 import io.grpc.ManagedChannel;
 import io.grpc.TlsChannelCredentials;
-import java.util.Arrays;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.InvalidKeyException;
+import java.security.cert.CertificateException;
+import java.util.concurrent.TimeUnit;
 import org.hyperledger.fabric.client.CommitException;
 import org.hyperledger.fabric.client.CommitStatusException;
 import org.hyperledger.fabric.client.Contract;
@@ -19,23 +26,12 @@ import org.hyperledger.fabric.client.Gateway;
 import org.hyperledger.fabric.client.GatewayException;
 import org.hyperledger.fabric.client.Hash;
 import org.hyperledger.fabric.client.SubmitException;
+import org.hyperledger.fabric.client.SubmittedTransaction;
 import org.hyperledger.fabric.client.identity.Identities;
 import org.hyperledger.fabric.client.identity.Identity;
 import org.hyperledger.fabric.client.identity.Signer;
 import org.hyperledger.fabric.client.identity.Signers;
 import org.hyperledger.fabric.client.identity.X509Identity;
-
-
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.security.InvalidKeyException;
-import java.security.cert.CertificateException;
-import java.time.Instant;
-import java.util.concurrent.TimeUnit;
 
 public final class App {
 	private static final String MSP_ID = System.getenv().getOrDefault("MSP_ID", "Org1MSP");
@@ -132,6 +128,8 @@ public final class App {
 
 		getPublicationHistoryFlow();
 
+		changePublicationTitleAsync();
+
 	}
 
 	private void initLedger() throws EndorseException, SubmitException, CommitStatusException, CommitException {
@@ -146,7 +144,7 @@ public final class App {
 	private void getAllPublications() throws GatewayException {
 		System.out.println("\n------ Get All Publications ------");
 
-		var result = publicationContract.evaluateTransaction("getAll");
+		byte[] result = publicationContract.evaluateTransaction("getAll");
 
 		System.out.println("Result: " + prettyJson(result));
 	}
@@ -178,7 +176,7 @@ public final class App {
 		System.out.println("\n------ Get History for Publication '" + id + "' ------");
 
 
-		var result = publicationContract.evaluateTransaction("getHistory", id);
+		byte[] result = publicationContract.evaluateTransaction("getHistory", id);
 		System.out.println("result: " + prettyJson(result));
 
 	}
@@ -231,6 +229,32 @@ public final class App {
 		}
 
 		return false;
+	}
+
+	private void changePublicationTitleAsync() throws EndorseException, SubmitException, CommitStatusException {
+		System.out.println("\n------ Change Publication Title Asynchronously ------");
+
+		final String id = "publication1";
+		final String newTitle = "The DAO";
+
+		SubmittedTransaction commit = publicationContract.newProposal("updatePublication")
+				.addArguments(id, newTitle)
+				.build()
+				.endorse()
+				.submitAsync();
+
+		System.out.println("Successfully submitted transaction to change title of Publication '" + id + "' to " + "'The DAO'");
+		System.out.println("Waiting for transaction commit");
+
+		var status = commit.getStatus();
+		if (!status.isSuccessful()) {
+			throw new RuntimeException("Transaction " + status.getTransactionId() +
+					" failed to commit with status code " + status.getCode());
+		}
+
+		byte[] result = commit.getResult();
+
+		System.out.println("Result: " + prettyJson(result));
 	}
 
 	private String prettyJson(final byte[] json) {

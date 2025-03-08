@@ -4,9 +4,7 @@ package org.example;
 import com.owlike.genson.Genson;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import org.hyperledger.fabric.contract.ClientIdentity;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.Contract;
@@ -70,6 +68,18 @@ public class PublicationService implements ContractInterface {
     }
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public Publication updatePublication(final Context ctx, final String id, final String title) {
+
+        if (!existsById(ctx, id)) {
+            String errorMessage = String.format("Publication %s does not exist", id);
+            System.out.println(errorMessage);
+            throw new ChaincodeException(errorMessage, PublicationErrors.NOT_FOUND.toString());
+        }
+
+        return put(ctx, new Publication(id, title));
+    }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void deletePublication(final Context ctx, final String id) {
         if (!existsById(ctx, id)) {
             String errorMessage = String.format("Publication %s does not exist", id);
@@ -100,10 +110,7 @@ public class PublicationService implements ContractInterface {
         return genson.serialize(history);
     }
 
-
-
     private Publication put(final Context ctx, final Publication publication) {
-        // Use Genson to convert the Asset into string, sort it alphabetically and serialize it into a json string
         String sortedJson = genson.serialize(publication);
         ctx.getStub().putStringState(publication.getId(), sortedJson);
 
