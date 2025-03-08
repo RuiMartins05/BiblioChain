@@ -1,5 +1,6 @@
 package org.example;
 
 public enum PublicationErrors {
-    PUBLICATION_ALREADY_EXISTS
+    ALREADY_EXISTS,
+    NOT_FOUND
 }

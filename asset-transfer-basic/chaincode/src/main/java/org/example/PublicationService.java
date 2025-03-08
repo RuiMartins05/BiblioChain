@@ -2,8 +2,11 @@ package org.example;
 
 
 import com.owlike.genson.Genson;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import org.hyperledger.fabric.contract.ClientIdentity;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.Contract;
@@ -11,6 +14,7 @@ import org.hyperledger.fabric.contract.annotation.Default;
 import org.hyperledger.fabric.contract.annotation.Transaction;
 import org.hyperledger.fabric.shim.ChaincodeException;
 import org.hyperledger.fabric.shim.ChaincodeStub;
+import org.hyperledger.fabric.shim.ledger.KeyModification;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 
@@ -22,7 +26,6 @@ public class PublicationService implements ContractInterface {
 
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void initLedger(final Context ctx) {
-
         put(ctx, new Publication("publication1", "BiblioChain Thesis"));
         put(ctx, new Publication("publication2", "Bitcoin Whitepaper"));
     }
@@ -60,11 +63,43 @@ public class PublicationService implements ContractInterface {
         if (existsById(ctx, id)) {
             String errorMessage = String.format("Publication %s already exists", id);
             System.out.println(errorMessage);
-            throw new ChaincodeException(errorMessage, PublicationErrors.PUBLICATION_ALREADY_EXISTS.toString());
+            throw new ChaincodeException(errorMessage, PublicationErrors.ALREADY_EXISTS.toString());
         }
 
         return put(ctx, new Publication(id, title));
     }
+
+    @Transaction(intent = Transaction.TYPE.SUBMIT)
+    public void deletePublication(final Context ctx, final String id) {
+        if (!existsById(ctx, id)) {
+            String errorMessage = String.format("Publication %s does not exist", id);
+            System.out.println(errorMessage);
+            throw new ChaincodeException(errorMessage, PublicationErrors.NOT_FOUND.toString());
+        }
+
+        ctx.getStub().delState(id);
+    }
+
+    @Transaction(intent =  Transaction.TYPE.EVALUATE)
+    public String getHistory(final Context ctx, String id) {
+        QueryResultsIterator<KeyModification> historyIter = ctx.getStub().getHistoryForKey(id);
+        List<String> history = new ArrayList<>();
+
+        for (KeyModification modification : historyIter) {
+            String entry = String.format(
+                    "TxId: %s, Value: %s, Timestamp: %s, IsDeleted: %b",
+                    modification.getTxId(),
+                    new String(modification.getValue(), StandardCharsets.UTF_8),
+                    modification.getTimestamp(),
+                    modification.isDeleted()
+            );
+            history.add(entry);
+            System.out.println("History Entry: " + entry);
+        }
+
+        return genson.serialize(history);
+    }
+
 
 
     private Publication put(final Context ctx, final Publication publication) {

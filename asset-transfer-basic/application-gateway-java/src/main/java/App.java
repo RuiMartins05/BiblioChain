@@ -67,15 +67,15 @@ public final class App {
 		 a Fabric Gateway belonging to the same organization as the client identity. If the client identity’s
 		 organization does not host any gateways, then a trusted gateway in another organization should be used.
 		 */
-		var channel = newGrpcConnection();
+		ManagedChannel channel = newGrpcConnection();
 
-		var builder = Gateway.newInstance()
+		Gateway.Builder gateWaybuilder = Gateway.newInstance()
                 .identity(newIdentity())
                 .signer(newSigner())
                 .hash(Hash.SHA256)
                 .connection(channel);
 
-		try (var gateway = builder.connect()) {
+		try (Gateway gateway = gateWaybuilder.connect()) {
 			new App(gateway).run();
 		} finally {
 			channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
@@ -121,15 +121,21 @@ public final class App {
 	public void run() throws GatewayException, CommitException {
 
 		initLedger();
+
 		getAllPublications();
 
 		checkPublicationsExistenceFlow();
 
 		createPublicationFlow();
+
+		deletePublicationFlow();
+
+		getPublicationHistoryFlow();
+
 	}
 
 	private void initLedger() throws EndorseException, SubmitException, CommitStatusException, CommitException {
-		System.out.println("\n--- Init Ledger ---");
+		System.out.println("\n------ Init Ledger ------");
 
 		publicationContract.submitTransaction("initLedger");
 
@@ -138,7 +144,7 @@ public final class App {
 
 
 	private void getAllPublications() throws GatewayException {
-		System.out.println("\n--- Get All Publications ---");
+		System.out.println("\n------ Get All Publications ------");
 
 		var result = publicationContract.evaluateTransaction("getAll");
 
@@ -158,8 +164,27 @@ public final class App {
 		existsById(id);
 	}
 
+	private void deletePublicationFlow() {
+		String id = "publication3";
+		deletePublication(id);
+		existsById(id);
+	}
+
+	private void getPublicationHistoryFlow() throws GatewayException {
+		getPublicationHistory("publication3");
+	}
+
+	private void getPublicationHistory(final String id) throws GatewayException {
+		System.out.println("\n------ Get History for Publication '" + id + "' ------");
+
+
+		var result = publicationContract.evaluateTransaction("getHistory", id);
+		System.out.println("result: " + prettyJson(result));
+
+	}
+
 	private void createPublication(final String id, final String title) {
-		System.out.println("\n--- Create Publication with Id '" + id + "'");
+		System.out.println("\n------ Create Publication with Id '" + id + "' ------");
 
 		try {
 			publicationContract.submitTransaction("createPublication", id, title);
@@ -173,13 +198,27 @@ public final class App {
 		}
 
 
-		System.out.println("*** Transaction committed successfully");
+		System.out.println("Transaction committed successfully");
 	}
 
+	private void deletePublication(final String id) {
+		System.out.println("\n------ Delete Publication with Id '" + id + "' ------");
 
+        try {
+            publicationContract.submitTransaction("deletePublication", id);
+		} catch (EndorseException | SubmitException | CommitStatusException e) {
+			e.printStackTrace(System.out);
+			System.out.println("Transaction ID: " + e.getTransactionId());
+		} catch (CommitException e) {
+			e.printStackTrace(System.out);
+			System.out.println("Transaction ID: " + e.getTransactionId());
+			System.out.println("Status code: " + e.getCode());
+		}
+
+    }
 
 	private boolean existsById(final String id) {
-		System.out.println("\n--- Checking If Publication '" + id + "' Exists ---");
+		System.out.println("\n------ Checking If Publication '" + id + "' Exists ------");
 
 		try {
 			byte[] byteResult = publicationContract.evaluateTransaction("existsById", id);
@@ -187,13 +226,12 @@ public final class App {
 			System.out.println("result: " + result);
 			return result;
 		} catch (GatewayException e) {
-			System.err.println("--- Error while checking publication existence ---");
+			System.err.println("Error while checking publication existence");
 			System.err.println("Message: " + e.getMessage());
 		}
 
 		return false;
 	}
-
 
 	private String prettyJson(final byte[] json) {
 		return prettyJson(new String(json, StandardCharsets.UTF_8));
