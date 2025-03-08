@@ -35,8 +35,8 @@ import org.hyperledger.fabric.client.identity.X509Identity;
 
 public final class App {
 	private static final String MSP_ID = System.getenv().getOrDefault("MSP_ID", "Org1MSP");
-	private static final String CHANNEL_NAME = System.getenv().getOrDefault("CHANNEL_NAME", "mychannel");
-	private static final String PUBLICATION_CHAINCODE_NAME = System.getenv().getOrDefault("CHAINCODE_NAME", "basic");
+	private static final String CHANNEL_NAME = System.getenv().getOrDefault("CHANNEL_NAME", "bibliochainchannel");
+	private static final String PUBLICATION_CHAINCODE_NAME = System.getenv().getOrDefault("CHAINCODE_NAME", "PublicationService");
 
 	// Path to crypto materials.
 	private static final Path CRYPTO_PATH = Paths.get("../../test-network/organizations/peerOrganizations/org1.example.com");

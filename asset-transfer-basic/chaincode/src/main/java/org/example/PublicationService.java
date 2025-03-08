@@ -16,7 +16,7 @@ import org.hyperledger.fabric.shim.ledger.KeyModification;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 
-@Contract(name = "basic")
+@Contract(name = "PublicationService")
 @Default
 public class PublicationService implements ContractInterface {
 
