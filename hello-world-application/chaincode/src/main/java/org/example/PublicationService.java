@@ -16,6 +16,7 @@ import org.hyperledger.fabric.shim.ledger.KeyModification;
 import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 
+
 @Contract(name = "PublicationService")
 @Default
 public class PublicationService implements ContractInterface {
@@ -25,7 +26,7 @@ public class PublicationService implements ContractInterface {
     @Transaction(intent = Transaction.TYPE.SUBMIT)
     public void initLedger(final Context ctx) {
         put(ctx, new Publication("publication1", "BiblioChain Thesis"));
-        put(ctx, new Publication("publication2", "Bitcoin Whitepaper"));
+        put(ctx, new Publication("publication2", "Bitcoin White paper"));
     }
 
     @Transaction(intent = Transaction.TYPE.EVALUATE)
@@ -38,7 +39,7 @@ public class PublicationService implements ContractInterface {
         // Giving empty startKey & endKey is interpreted as all the keys from beginning to end.
         // As another example, if you use startKey = 'asset0', endKey = 'asset9' ,
         // then getStateByRange will retrieve asset with keys between asset0 (inclusive) and asset9 (exclusive) in lexical order.
-        QueryResultsIterator<KeyValue> results = stub.getStateByRange("", "");
+        QueryResultsIterator<KeyValue> results = stub.getStateByRange("publication1", "publication~");
 
         for (KeyValue result: results) {
             Publication asset = genson.deserialize(result.getStringValue(), Publication.class);
@@ -113,7 +114,6 @@ public class PublicationService implements ContractInterface {
     private Publication put(final Context ctx, final Publication publication) {
         String sortedJson = genson.serialize(publication);
         ctx.getStub().putStringState(publication.getId(), sortedJson);
-
         return publication;
     }
 

@@ -1,16 +1,20 @@
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
+import io.grpc.ChannelCredentials;
 import io.grpc.Grpc;
 import io.grpc.ManagedChannel;
 import io.grpc.TlsChannelCredentials;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.InvalidKeyException;
+import java.security.PrivateKey;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.concurrent.TimeUnit;
 import org.hyperledger.fabric.client.CommitException;
 import org.hyperledger.fabric.client.CommitStatusException;
@@ -19,6 +23,8 @@ import org.hyperledger.fabric.client.EndorseException;
 import org.hyperledger.fabric.client.Gateway;
 import org.hyperledger.fabric.client.GatewayException;
 import org.hyperledger.fabric.client.Hash;
+import org.hyperledger.fabric.client.Network;
+import org.hyperledger.fabric.client.Status;
 import org.hyperledger.fabric.client.SubmitException;
 import org.hyperledger.fabric.client.SubmittedTransaction;
 import org.hyperledger.fabric.client.identity.Identities;
@@ -30,7 +36,7 @@ import org.hyperledger.fabric.client.identity.X509Identity;
 public final class App {
 	private static final String MSP_ID = System.getenv().getOrDefault("MSP_ID", "Org1MSP");
 	private static final String CHANNEL_NAME = System.getenv().getOrDefault("CHANNEL_NAME", "bibliochainchannel");
-	private static final String PUBLICATION_CHAINCODE_NAME = System.getenv().getOrDefault("CHAINCODE_NAME", "PublicationService");
+	private static final String PUBLICATION_CHAINCODE_NAME = System.getenv().getOrDefault("CHAINCODE_NAME", "bibliochainChaincode");
 
 	// Path to crypto materials.
 	private static final Path CRYPTO_PATH = Paths.get("../../test-network/organizations/peerOrganizations/org1.example.com");
@@ -73,7 +79,7 @@ public final class App {
 	}
 
 	private static ManagedChannel newGrpcConnection() throws IOException {
-		var credentials = TlsChannelCredentials.newBuilder()
+		ChannelCredentials credentials = TlsChannelCredentials.newBuilder()
 				.trustManager(TLS_CERT_PATH.toFile())
 				.build();
 		return Grpc.newChannelBuilder(PEER_ENDPOINT, credentials)
@@ -82,15 +88,15 @@ public final class App {
 	}
 
 	private static Identity newIdentity() throws IOException, CertificateException {
-		try (var certReader = Files.newBufferedReader(getFirstFilePath(CERT_DIR_PATH))) {
-			var certificate = Identities.readX509Certificate(certReader);
+		try (BufferedReader certReader = Files.newBufferedReader(getFirstFilePath(CERT_DIR_PATH))) {
+			X509Certificate certificate = Identities.readX509Certificate(certReader);
 			return new X509Identity(MSP_ID, certificate);
 		}
 	}
 
 	private static Signer newSigner() throws IOException, InvalidKeyException {
-		try (var keyReader = Files.newBufferedReader(getFirstFilePath(KEY_DIR_PATH))) {
-			var privateKey = Identities.readPrivateKey(keyReader);
+		try (BufferedReader keyReader = Files.newBufferedReader(getFirstFilePath(KEY_DIR_PATH))) {
+			PrivateKey privateKey = Identities.readPrivateKey(keyReader);
 			return Signers.newPrivateKeySigner(privateKey);
 		}
 	}
@@ -103,9 +109,9 @@ public final class App {
 
 	public App(final Gateway gateway) {
 		// Get a network instance representing the channel where the smart contract is deployed.
-		var network = gateway.getNetwork(CHANNEL_NAME);
+		Network network = gateway.getNetwork(CHANNEL_NAME);
 
-		publicationContract = network.getContract(PUBLICATION_CHAINCODE_NAME);
+		this.publicationContract = network.getContract(PUBLICATION_CHAINCODE_NAME, "PublicationService");
 	}
 
 	public void run() throws GatewayException, CommitException {
@@ -152,7 +158,7 @@ public final class App {
 
 	private void createPublicationFlow() {
 		String id = "publication3";
-		createPublication(id, "Ethereum Whitpaper");
+		createPublication(id, "Ethereum White paper");
 		existsById(id);
 	}
 
@@ -214,7 +220,7 @@ public final class App {
 
 		try {
 			byte[] byteResult = publicationContract.evaluateTransaction("existsById", id);
-			boolean result = jsonToBoolean(byteResult);
+			boolean result = byteToBoolean(byteResult);
 			System.out.println("result: " + result);
 			return result;
 		} catch (GatewayException e) {
@@ -240,7 +246,7 @@ public final class App {
 		System.out.println("Successfully submitted transaction to change title of Publication '" + id + "' to " + "'The DAO'");
 		System.out.println("Waiting for transaction commit");
 
-		var status = commit.getStatus();
+		Status status = commit.getStatus();
 		if (!status.isSuccessful()) {
 			throw new RuntimeException("Transaction " + status.getTransactionId() +
 					" failed to commit with status code " + status.getCode());
@@ -255,7 +261,7 @@ public final class App {
 		return prettyJson(new String(json, StandardCharsets.UTF_8));
 	}
 
-	private boolean jsonToBoolean(final byte[] json) {
+	private boolean byteToBoolean(final byte[] json) {
 		return Boolean.parseBoolean(prettyJson(json).trim());
 	}
 
